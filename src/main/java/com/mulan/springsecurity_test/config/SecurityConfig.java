@@ -6,10 +6,13 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
-import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.authentication.rememberme.JdbcTokenRepositoryImpl;
+import org.springframework.security.web.authentication.rememberme.PersistentTokenRepository;
+
+import javax.sql.DataSource;
 
 /**
  * @author 韩志雄
@@ -20,6 +23,18 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
 	@Autowired
 	private UserDetailsService userDetailsService;
+
+	//注入数据源
+	@Autowired
+	private DataSource dataSource;
+
+	//添加持久化令牌仓库
+	@Bean
+	public PersistentTokenRepository persistentTokenRepository() {
+		JdbcTokenRepositoryImpl jdbcTokenRepository = new JdbcTokenRepositoryImpl();
+		jdbcTokenRepository.setDataSource(dataSource);
+		return jdbcTokenRepository;
+	}
 
 	@Override
 	protected void configure(AuthenticationManagerBuilder auth) throws Exception{
@@ -43,6 +58,9 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 				.antMatchers("/","/index","/test/hello","/user/login").permitAll()
 				.antMatchers("/user/login").hasAnyAuthority("manager,admin")
 				.anyRequest().authenticated()
+				.and().rememberMe().tokenRepository(persistentTokenRepository())
+				.tokenValiditySeconds(60)//设置有效时长单位秒
+				.userDetailsService(userDetailsService)
 				.and().csrf().disable();//关闭csrf防护
 	}
 }
